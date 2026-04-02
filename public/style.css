@@ -1,0 +1,69 @@
+body {
+  font-family: Arial;
+  margin: 0;
+  background: #f4f6fb;
+}
+
+.header {
+  background: linear-gradient(90deg,#6a11cb,#2575fc);
+  color: white;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cards {
+  display: flex;
+  gap: 15px;
+  padding: 20px;
+}
+
+.card {
+  flex: 1;
+  padding: 20px;
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+}
+
+.green { background: #28a745; }
+.red { background: #dc3545; }
+.blue { background: #007bff; }
+
+.filters {
+  padding: 10px 20px;
+}
+
+input {
+  padding: 8px;
+  width: 250px;
+}
+
+table {
+  width: 95%;
+  margin: auto;
+  border-collapse: collapse;
+  background: white;
+}
+
+th {
+  background: linear-gradient(90deg,#6a11cb,#2575fc);
+  color: white;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.upload { background: green; color: white; }
+.view { background: blue; color: white; }
+.delete { background: red; color: white; }

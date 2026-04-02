@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h2>Admin Dashboard</h2>
+
+  <div class="top-actions">
+    <button onclick="downloadExcel()">Downloads</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- CARDS -->
+<div class="cards">
+  <div class="card green">
+    <h3 id="awsDone">0</h3>
+    <p>AWS Submitted</p>
+  </div>
+
+  <div class="card red">
+    <h3 id="awsPending">0</h3>
+    <p>AWS Pending</p>
+  </div>
+
+  <div class="card green">
+    <h3 id="sssDone">0</h3>
+    <p>SSS Submitted</p>
+  </div>
+
+  <div class="card red">
+    <h3 id="sssPending">0</h3>
+    <p>SSS Pending</p>
+  </div>
+
+  <div class="card blue">
+    <h3 id="total">0</h3>
+    <p>Total</p>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <input id="search" placeholder="Search..." onkeyup="loadData()">
+</div>
+
+<!-- TABLE -->
+<table>
+<thead>
+<tr>
+  <th>Division</th>
+  <th>State</th>
+  <th>BM HQ</th>
+  <th>Code</th>
+  <th>Name</th>
+  <th>Sales</th>
+  <th>AWS</th>
+  <th>SSS</th>
+</tr>
+</thead>
+
+<tbody id="tableData"></tbody>
+</table>
+
+<script src="app.js"></script>
+
+</body>
+</html>
