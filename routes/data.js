@@ -7,46 +7,69 @@ const fs = require("fs");
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-/* LOAD EXCEL DATA */
+/* =========================
+   LOAD EXCEL
+========================= */
 function loadExcel() {
   const filePath = path.join(__dirname, "../data/source.xlsx");
 
-  if (!fs.existsSync(filePath)) return [];
+  if (!fs.existsSync(filePath)) {
+    console.log("Excel file missing");
+    return [];
+  }
 
   const workbook = XLSX.readFile(filePath);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   return XLSX.utils.sheet_to_json(sheet);
 }
 
-/* IN-MEMORY STORAGE */
+/* =========================
+   MEMORY STORAGE
+========================= */
 let uploadedFiles = [];
 
-/* GET DATA */
-router.get("/data", (req, res) => {
+/* =========================
+   LIST DATA (IMPORTANT FIX)
+========================= */
+router.get("/list", (req, res) => {
   const excelData = loadExcel();
 
-  const finalData = excelData.map(row => {
-    const match = uploadedFiles.find(f => f.Code == row.Code);
+  const finalData = excelData.map((row, index) => {
+    const code = row.Code || row.CODE;
+
+    const match = uploadedFiles.find(f => f.Code == code);
 
     return {
-      Division: row.Division || "",
-      State: row.State || "",
-      "BM HQ": row["BM HQ"] || row.BM_HQ || "",
-      Code: row.Code || "",
-      Name: row.Name || row["Stockist Name"] || "",
+      id: index,
 
-      awsFile: match?.awsFile || null,
-      sssFile: match?.sssFile || null
+      division: row.Division || "",
+      state: row.State || "",
+      bmhq: row["BM HQ"] || row.BM_HQ || "",
+      code: code || "",
+      name: row["Stockist Name"] || row.Name || "",
+
+      awsFile: match?.awsFile
+        ? `/data/file/${match.awsFile}`
+        : null,
+
+      sssFile: match?.sssFile
+        ? `/data/file/${match.sssFile}`
+        : null
     };
   });
 
   res.json(finalData);
 });
 
-
-/* UPLOAD */
+/* =========================
+   UPLOAD
+========================= */
 router.post("/upload", upload.single("file"), (req, res) => {
   const { code, type } = req.body;
+
+  if (!code || !type) {
+    return res.status(400).json({ error: "Missing data" });
+  }
 
   let record = uploadedFiles.find(r => r.Code == code);
 
@@ -57,26 +80,43 @@ router.post("/upload", upload.single("file"), (req, res) => {
 
   record[type + "File"] = req.file.filename;
 
-  res.json({ message: "Uploaded" });
+  res.json({
+    success: true,
+    file: req.file.filename
+  });
 });
 
-/* VIEW FILE */
+/* =========================
+   VIEW FILE
+========================= */
 router.get("/file/:name", (req, res) => {
-  res.sendFile(path.join(__dirname, "../uploads", req.params.name));
+  const filePath = path.join(__dirname, "../uploads", req.params.name);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send("File not found");
+  }
+
+  res.sendFile(filePath);
 });
 
-/* DELETE (ADMIN ONLY FRONTEND CONTROL) */
+/* =========================
+   DELETE
+========================= */
 router.delete("/delete/:code/:type", (req, res) => {
   const { code, type } = req.params;
 
   let record = uploadedFiles.find(r => r.Code == code);
 
-  if (record) delete record[type + "File"];
+  if (record) {
+    delete record[type + "File"];
+  }
 
-  res.json({ message: "Deleted" });
+  res.json({ success: true });
 });
 
-/* DOWNLOAD EXCEL */
+/* =========================
+   DOWNLOAD EXCEL
+========================= */
 router.get("/download/excel", (req, res) => {
   const data = loadExcel();
 
