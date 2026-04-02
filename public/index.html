@@ -124,10 +124,7 @@
     const data = await res.json();
 
     if (data.success) {
-
-      // ✅ IMPORTANT FIX
       localStorage.setItem("role", "user");
-
       window.location.href = "/dashboard.html";
     } else {
       alert(data.message || "Invalid ID");
@@ -150,11 +147,11 @@
     const data = await res.json();
 
     if (data.success) {
-
-      // ✅ IMPORTANT FIX
       localStorage.setItem("role", "admin");
 
-      window.location.href = "/admin.html";
+      // ✅ FINAL FIX (IMPORTANT)
+      window.location.href = "/dashboard.html";
+
     } else {
       alert("Invalid admin login");
     }

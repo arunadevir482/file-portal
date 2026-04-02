@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Dashboard</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -9,7 +9,7 @@
 
 <!-- HEADER -->
 <div class="header">
-  <h2>Admin Dashboard</h2>
+  <h2 id="pageTitle">Dashboard</h2>
 
   <div class="top-actions">
     <button onclick="downloadExcel()">Downloads</button>
@@ -69,6 +69,17 @@
 </table>
 
 <script src="app.js"></script>
+
+<script>
+  // ✅ ROLE BASED TITLE FIX
+  const role = localStorage.getItem("role");
+
+  if (role === "admin") {
+    document.getElementById("pageTitle").innerText = "Admin Dashboard";
+  } else {
+    document.getElementById("pageTitle").innerText = "User Dashboard";
+  }
+</script>
 
 </body>
 </html>

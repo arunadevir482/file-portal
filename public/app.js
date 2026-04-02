@@ -2,7 +2,6 @@ async function loadData() {
 
   const search = document.getElementById("search").value.toLowerCase();
 
-  // ✅ FIXED API
   const res = await fetch("/data/list");
   const data = await res.json();
 
@@ -12,19 +11,25 @@ async function loadData() {
 
   data.forEach(row => {
 
-    // ✅ FIXED mapping
-    if (search && !(row.name || "").toLowerCase().includes(search)) return;
+    // ✅ SUPPORT BOTH FORMATS (IMPORTANT FIX)
+    const division = row.division || row.Division || "";
+    const state = row.state || row.State || "";
+    const bmhq = row.bmhq || row["BM HQ"] || "";
+    const code = row.code || row.Code || "";
+    const name = row.name || row.Name || "";
+
+    if (search && !name.toLowerCase().includes(search)) return;
 
     if (row.awsFile) awsDone++; else awsPending++;
     if (row.sssFile) sssDone++; else sssPending++;
 
     html += `
       <tr>
-        <td>${row.division || ""}</td>
-        <td>${row.state || ""}</td>
-        <td>${row.bmhq || ""}</td>
-        <td>${row.code || ""}</td>
-        <td>${row.name || ""}</td>
+        <td>${division}</td>
+        <td>${state}</td>
+        <td>${bmhq}</td>
+        <td>${code}</td>
+        <td>${name}</td>
 
         <td>
           <input placeholder="Enter value">
@@ -33,16 +38,16 @@ async function loadData() {
         <td>
           ${row.awsFile
             ? `<button class="view" onclick="viewFile('${row.awsFile}')">View</button>
-               ${isAdmin() ? `<button class="delete" onclick="deleteFile('${row.code}','aws')">Delete</button>` : ""}`
-            : `<button class="upload" onclick="upload('${row.code}','aws')">Upload AWS</button>`
+               ${isAdmin() ? `<button class="delete" onclick="deleteFile('${code}','aws')">Delete</button>` : ""}`
+            : `<button class="upload" onclick="upload('${code}','aws')">Upload AWS</button>`
           }
         </td>
 
         <td>
           ${row.sssFile
             ? `<button class="view" onclick="viewFile('${row.sssFile}')">View</button>
-               ${isAdmin() ? `<button class="delete" onclick="deleteFile('${row.code}','sss')">Delete</button>` : ""}`
-            : `<button class="upload" onclick="upload('${row.code}','sss')">Upload SSS</button>`
+               ${isAdmin() ? `<button class="delete" onclick="deleteFile('${code}','sss')">Delete</button>` : ""}`
+            : `<button class="upload" onclick="upload('${code}','sss')">Upload SSS</button>`
           }
         </td>
       </tr>
@@ -71,7 +76,6 @@ function upload(code, type) {
     form.append("code", code);
     form.append("type", type);
 
-    // ✅ FIXED API
     await fetch("/data/upload", { method: "POST", body: form });
 
     loadData();
@@ -84,7 +88,6 @@ function upload(code, type) {
    VIEW
 ========================= */
 function viewFile(url) {
-  // ✅ FIXED (already full path from backend)
   window.open(url);
 }
 
@@ -92,7 +95,6 @@ function viewFile(url) {
    DELETE
 ========================= */
 function deleteFile(code, type) {
-  // ✅ FIXED API
   fetch(`/data/delete/${code}/${type}`, { method: "DELETE" });
   loadData();
 }
@@ -108,7 +110,6 @@ function isAdmin() {
    DOWNLOAD
 ========================= */
 function downloadExcel() {
-  // ✅ FIXED API
   window.open("/data/download/excel");
 }
 
