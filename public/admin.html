@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #f5f6fa;
+    }
+
+    .header {
+      background: linear-gradient(to right, #6a11cb, #2575fc);
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background: #6a11cb;
+      color: white;
+    }
+
+    button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .delete {
+      background: red;
+      color: white;
+    }
+
+    .view {
+      background: green;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>Admin Dashboard</h2>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<div class="container">
+  <table id="table">
+    <thead>
+      <tr>
+        <th>State</th>
+        <th>Code</th>
+        <th>Name</th>
+        <th>AWS</th>
+        <th>SSS</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+async function loadData() {
+  const res = await fetch("/data/list");
+  const data = await res.json();
+
+  const tbody = document.querySelector("tbody");
+  tbody.innerHTML = "";
+
+  data.forEach(row => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${row.state}</td>
+        <td>${row.code}</td>
+        <td>${row.name}</td>
+        <td>
+          ${row.awsFile ? `
+            <a href="${row.awsFile}" target="_blank">
+              <button class="view">View</button>
+            </a>
+            <button class="delete" onclick="deleteFile('${row.id}','aws')">Delete</button>
+          ` : "Pending"}
+        </td>
+        <td>
+          ${row.sssFile ? `
+            <a href="${row.sssFile}" target="_blank">
+              <button class="view">View</button>
+            </a>
+            <button class="delete" onclick="deleteFile('${row.id}','sss')">Delete</button>
+          ` : "Pending"}
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function deleteFile(id, type) {
+  await fetch("/data/delete", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ id, type })
+  });
+
+  loadData();
+}
+
+function logout() {
+  window.location.href = "/";
+}
+
+loadData();
+</script>
+
+</body>
+</html>
