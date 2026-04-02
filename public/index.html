@@ -1,52 +1,150 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Login</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Linux Labs Portal</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f2a5c, #1f4ea3);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .card {
+      background: #fff;
+      padding: 30px;
+      width: 360px;
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+      margin: 10px 0;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(to right, #2b7cff, #6c2bd9);
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .admin-toggle {
+      margin-top: 15px;
+      color: #2b7cff;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 
-<body class="login-body">
+<body>
 
-<div class="login-card">
+<div class="card">
   <h2>Linux Labs</h2>
-  <p>SSS & AWS Submission Portal — Field Login</p>
+  <div class="subtitle">SSS & AWS Submission Portal — Field Login</div>
 
-  <input id="id" placeholder="Enter ID or Email">
-  <button onclick="login()">Continue</button>
+  <!-- USER LOGIN -->
+  <div id="userLogin">
+    <input id="userId" placeholder="Enter ID" />
+    <button onclick="userLogin()">Continue</button>
 
-  <p id="msg" style="color:red;"></p>
+    <div class="admin-toggle" onclick="showAdmin()">
+      🔐 Admin Login
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN -->
+  <div id="adminLogin" class="hidden">
+    <input id="email" placeholder="Enter Email" />
+    <input id="password" type="password" placeholder="Enter Password" />
+
+    <button onclick="adminLogin()">Login</button>
+
+    <div class="admin-toggle" onclick="showUser()">
+      ← Back to User Login
+    </div>
+  </div>
+
 </div>
 
 <script>
-async function login() {
+  function showAdmin() {
+    document.getElementById("userLogin").classList.add("hidden");
+    document.getElementById("adminLogin").classList.remove("hidden");
+  }
 
-  const id = document.getElementById("id").value;
+  function showUser() {
+    document.getElementById("adminLogin").classList.add("hidden");
+    document.getElementById("userLogin").classList.remove("hidden");
+  }
 
-  try {
-    const res = await fetch("/api/auth/login", {
+  async function userLogin() {
+    const id = document.getElementById("userId").value;
+
+    const res = await fetch("/auth/user-login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id })
     });
 
     const data = await res.json();
 
-    console.log(data);
-
-    if (res.ok && data.token) {
-      localStorage.setItem("role", data.role);
-      window.location = "/dashboard.html";
+    if (data.success) {
+      window.location.href = "/dashboard.html";
     } else {
-      alert(data.message || "Login failed");
+      alert(data.message || "Invalid ID");
     }
-
-  } catch (err) {
-    console.error(err);
-    alert("Server error");
   }
-}
+
+  async function adminLogin() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const res = await fetch("/auth/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.href = "/admin.html";
+    } else {
+      alert("Invalid admin login");
+    }
+  }
 </script>
 
 </body>

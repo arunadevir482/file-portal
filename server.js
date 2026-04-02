@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* STATIC FILES */
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
 /* ROUTES */
 app.use("/api/auth", require("./routes/auth"));
