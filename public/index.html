@@ -2,7 +2,6 @@
 <html>
 <head>
 <title>Statement Portal</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -10,6 +9,40 @@ body {
   margin:0;
   font-family: Arial;
   background:#f4f6fb;
+}
+
+/* LOGIN */
+.login {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  background:linear-gradient(135deg,#1e3c72,#2a5298);
+}
+
+.login-box {
+  background:white;
+  padding:30px;
+  border-radius:10px;
+  width:320px;
+  text-align:center;
+}
+
+.login-box h2 {
+  margin-bottom:20px;
+}
+
+input {
+  width:100%;
+  padding:10px;
+  margin:10px 0;
+}
+
+button {
+  padding:10px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
 }
 
 /* HEADER */
@@ -22,25 +55,10 @@ body {
   align-items:center;
 }
 
-/* LOGIN */
-.login {
+.header-right {
   display:flex;
-  justify-content:center;
+  gap:10px;
   align-items:center;
-  height:100vh;
-}
-
-.login-box {
-  background:white;
-  padding:30px;
-  border-radius:10px;
-  width:300px;
-}
-
-input, select {
-  width:100%;
-  padding:10px;
-  margin:5px 0;
 }
 
 /* DASHBOARD */
@@ -80,14 +98,6 @@ th, td {
   text-align:center;
 }
 
-button {
-  padding:6px 10px;
-  margin:2px;
-  border:none;
-  border-radius:5px;
-  cursor:pointer;
-}
-
 .upload {background:#3498db;color:white;}
 .view {background:#2ecc71;color:white;}
 .delete {background:#e74c3c;color:white;}
@@ -110,7 +120,6 @@ button {
   justify-content:center;
   align-items:center;
   color:white;
-  font-size:20px;
 }
 </style>
 
@@ -121,9 +130,9 @@ button {
 <!-- LOGIN -->
 <div id="loginPage" class="login">
   <div class="login-box">
-    <h3>Login</h3>
-    <input id="email" placeholder="Enter ID">
-    <button onclick="login()">Login</button>
+    <h2>Login</h2>
+    <input id="loginInput" placeholder="Enter ID or Email">
+    <button onclick="login()">Continue</button>
   </div>
 </div>
 
@@ -131,8 +140,10 @@ button {
 <div id="app" style="display:none">
 
 <div class="header">
-  <div>Statement Portal</div>
-  <div>
+  <div><b>Admin Dashboard</b></div>
+
+  <div class="header-right">
+    <span id="userInfo"></span>
     <button onclick="downloadExcel()">Excel</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -140,10 +151,8 @@ button {
 
 <div class="container">
 
-<!-- SEARCH -->
 <input id="search" placeholder="Search..." onkeyup="filterTable()">
 
-<!-- CARDS -->
 <div class="cards">
   <div class="card green" id="awsSub"></div>
   <div class="card orange" id="awsPend"></div>
@@ -152,7 +161,6 @@ button {
   <div class="card blue" id="total"></div>
 </div>
 
-<!-- TABLE -->
 <table>
 <thead>
 <tr>
@@ -167,7 +175,6 @@ button {
 </table>
 
 </div>
-
 </div>
 
 <input type="file" id="fileInput" style="display:none"/>
@@ -175,7 +182,8 @@ button {
 
 <script>
 let token = localStorage.getItem("token");
-let role = "admin";
+let role = localStorage.getItem("role");
+let level = localStorage.getItem("level");
 
 let selectedFile = null;
 let currentCode = "";
@@ -183,32 +191,45 @@ let currentType = "";
 
 /* LOGIN */
 async function login(){
-  const email = document.getElementById("email").value;
+  const id = document.getElementById("loginInput").value;
 
   const res = await fetch("/auth/user-login",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({id:email})
+    body:JSON.stringify({id})
   });
 
   const data = await res.json();
 
+  if(!res.ok){
+    alert(data.message);
+    return;
+  }
+
   token = data.token;
-  role = data.role || "user";
+  role = data.role;
+  level = data.level || "";
 
   localStorage.setItem("token",token);
+  localStorage.setItem("role",role);
+  localStorage.setItem("level",level);
 
   startApp();
 }
 
 /* START */
 function startApp(){
-  document.getElementById("loginPage").style.display="none";
-  document.getElementById("app").style.display="block";
+  loginPage.style.display="none";
+  app.style.display="block";
+
+  userInfo.innerText = role==="admin"
+    ? "Admin"
+    : `User (${level})`;
+
   load();
 }
 
-/* LOAD */
+/* LOAD DATA */
 async function load(){
   tbody.innerHTML="";
 
@@ -255,7 +276,7 @@ function renderCell(uploaded,fileId,code,type){
   } else {
     return `
       <span class="status pending">Pending</span><br>
-      <button class="upload" onclick="chooseFile('${code}','${type}')">Choose File</button>
+      <button class="upload" onclick="chooseFile('${code}','${type}')">Choose</button>
     `;
   }
 }
@@ -340,7 +361,7 @@ function filterTable(){
 
 /* LOGOUT */
 function logout(){
-  localStorage.removeItem("token");
+  localStorage.clear();
   location.reload();
 }
 
