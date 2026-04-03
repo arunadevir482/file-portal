@@ -12,6 +12,7 @@
   <h2 id="pageTitle">Dashboard</h2>
 
   <div class="top-actions">
+    <button onclick="clearFilters()">Clear Filters</button>
     <button onclick="downloadExcel()">Downloads</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -19,22 +20,23 @@
 
 <!-- CARDS -->
 <div class="cards">
-  <div class="card green">
+
+  <div class="card green" onclick="filterByCard('awsDone')">
     <h3 id="awsDone">0</h3>
     <p>AWS Submitted</p>
   </div>
 
-  <div class="card red">
+  <div class="card red" onclick="filterByCard('awsPending')">
     <h3 id="awsPending">0</h3>
     <p>AWS Pending</p>
   </div>
 
-  <div class="card green">
+  <div class="card green" onclick="filterByCard('sssDone')">
     <h3 id="sssDone">0</h3>
     <p>SSS Submitted</p>
   </div>
 
-  <div class="card red">
+  <div class="card red" onclick="filterByCard('sssPending')">
     <h3 id="sssPending">0</h3>
     <p>SSS Pending</p>
   </div>
@@ -43,45 +45,43 @@
     <h3 id="total">0</h3>
     <p>Total</p>
   </div>
+
 </div>
 
 <!-- TABLE -->
 <table>
 <thead>
 <tr>
+
   <th>
-    Division
-    <br>
-    <input id="f_division" placeholder="Filter division" onkeyup="filterTable()">
+    Division<br>
+    <input id="f_division" placeholder="Filter division" onkeyup="applyFilters()">
   </th>
 
   <th>
-    State
-    <br>
-    <input id="f_state" placeholder="Filter state" onkeyup="filterTable()">
+    State<br>
+    <input id="f_state" placeholder="Filter state" onkeyup="applyFilters()">
   </th>
 
   <th>
-    BM HQ
-    <br>
-    <input id="f_bmhq" placeholder="Filter BM HQ" onkeyup="filterTable()">
+    BM HQ<br>
+    <input id="f_bmhq" placeholder="Filter BM HQ" onkeyup="applyFilters()">
   </th>
 
   <th>
-    Code
-    <br>
-    <input id="f_code" placeholder="Filter code" onkeyup="filterTable()">
+    Code<br>
+    <input id="f_code" placeholder="Filter code" onkeyup="applyFilters()">
   </th>
 
   <th>
-    Name
-    <br>
-    <input id="f_name" placeholder="Filter name" onkeyup="filterTable()">
+    Name<br>
+    <input id="f_name" placeholder="Filter name" onkeyup="applyFilters()">
   </th>
 
   <th>Sales</th>
   <th>AWS</th>
   <th>SSS</th>
+
 </tr>
 </thead>
 
@@ -91,35 +91,13 @@
 <script src="app.js"></script>
 
 <script>
-  // ✅ ROLE BASED TITLE
+  // ✅ ROLE BASED TITLE (KEEP)
   const role = localStorage.getItem("role");
 
   if (role === "admin") {
     document.getElementById("pageTitle").innerText = "Admin Dashboard";
   } else {
     document.getElementById("pageTitle").innerText = "User Dashboard";
-  }
-
-  // ✅ COLUMN FILTER FUNCTION
-  function filterTable() {
-    const div = document.getElementById("f_division").value.toLowerCase();
-    const state = document.getElementById("f_state").value.toLowerCase();
-    const bmhq = document.getElementById("f_bmhq").value.toLowerCase();
-    const code = document.getElementById("f_code").value.toLowerCase();
-    const name = document.getElementById("f_name").value.toLowerCase();
-
-    document.querySelectorAll("#tableData tr").forEach(row => {
-      const cells = row.children;
-
-      const match =
-        cells[0].innerText.toLowerCase().includes(div) &&
-        cells[1].innerText.toLowerCase().includes(state) &&
-        cells[2].innerText.toLowerCase().includes(bmhq) &&
-        cells[3].innerText.toLowerCase().includes(code) &&
-        cells[4].innerText.toLowerCase().includes(name);
-
-      row.style.display = match ? "" : "none";
-    });
   }
 </script>
 

@@ -1,28 +1,70 @@
+let fullData = [];
+let activeCardFilter = null;
+
 async function loadData() {
-
-  // ❌ REMOVE SEARCH DEPENDENCY (FIX)
-  const search = "";
-
   const res = await fetch("/data/list");
-  const data = await res.json();
+  fullData = await res.json();
+
+  applyFilters();
+}
+
+/* =========================
+   APPLY FILTERS (FIXED)
+========================= */
+function applyFilters() {
+
+  const div = document.getElementById("f_division")?.value.toLowerCase() || "";
+  const state = document.getElementById("f_state")?.value.toLowerCase() || "";
+  const bmhq = document.getElementById("f_bmhq")?.value.toLowerCase() || "";
+  const code = document.getElementById("f_code")?.value.toLowerCase() || "";
+  const name = document.getElementById("f_name")?.value.toLowerCase() || "";
+
+  let data = fullData.filter(row => {
+
+    const division = row.division || row.Division || row.DIVISION || "";
+    const st = row.state || row.State || row.STATE || "";
+    const hq = row.bmhq || row["BM HQ"] || row["BM HQ "] || "";
+    const cd = row.code || row.Code || row.CODE || "";
+    const nm = row.name || row.Name || row.NAME || "";
+
+    return (
+      division.toLowerCase().includes(div) &&
+      st.toLowerCase().includes(state) &&
+      hq.toLowerCase().includes(bmhq) &&
+      cd.toLowerCase().includes(code) &&
+      nm.toLowerCase().includes(name)
+    );
+  });
+
+  /* ✅ CARD FILTER */
+  if (activeCardFilter) {
+    data = data.filter(row => {
+      if (activeCardFilter === "awsDone") return row.awsFile;
+      if (activeCardFilter === "awsPending") return !row.awsFile;
+      if (activeCardFilter === "sssDone") return row.sssFile;
+      if (activeCardFilter === "sssPending") return !row.sssFile;
+      return true;
+    });
+  }
+
+  renderTable(data);
+  updateCards(data); // 🔥 IMPORTANT: pass filtered data only
+}
+
+/* =========================
+   TABLE RENDER
+========================= */
+function renderTable(data) {
 
   let html = "";
 
-  let awsDone = 0, awsPending = 0, sssDone = 0, sssPending = 0;
-
   data.forEach(row => {
 
-    // ✅ SAFE MAPPING (ALL FORMATS)
     const division = row.division || row.Division || row.DIVISION || "";
     const state = row.state || row.State || row.STATE || "";
     const bmhq = row.bmhq || row["BM HQ"] || row["BM HQ "] || "";
     const code = row.code || row.Code || row.CODE || "";
     const name = row.name || row.Name || row.NAME || "";
-
-    if (search && !name.toLowerCase().includes(search)) return;
-
-    if (row.awsFile) awsDone++; else awsPending++;
-    if (row.sssFile) sssDone++; else sssPending++;
 
     html += `
       <tr>
@@ -56,12 +98,59 @@ async function loadData() {
   });
 
   document.getElementById("tableData").innerHTML = html;
+}
 
-  document.getElementById("awsDone").innerText = awsDone;
-  document.getElementById("awsPending").innerText = awsPending;
-  document.getElementById("sssDone").innerText = sssDone;
-  document.getElementById("sssPending").innerText = sssPending;
-  document.getElementById("total").innerText = data.length;
+/* =========================
+   CARD UPDATE (FINAL FIX)
+========================= */
+function updateCards(data) {
+
+  let awsDone = 0, awsPending = 0, sssDone = 0, sssPending = 0;
+
+  data.forEach(row => {
+    if (row.awsFile) awsDone++; else awsPending++;
+    if (row.sssFile) sssDone++; else sssPending++;
+  });
+
+  const total = data.length;
+  const safeTotal = total === 0 ? 1 : total;
+
+  document.getElementById("awsDone").innerText =
+    `${awsDone} (${Math.round((awsDone/safeTotal)*100)}%)`;
+
+  document.getElementById("awsPending").innerText =
+    `${awsPending} (${Math.round((awsPending/safeTotal)*100)}%)`;
+
+  document.getElementById("sssDone").innerText =
+    `${sssDone} (${Math.round((sssDone/safeTotal)*100)}%)`;
+
+  document.getElementById("sssPending").innerText =
+    `${sssPending} (${Math.round((sssPending/safeTotal)*100)}%)`;
+
+  document.getElementById("total").innerText = total;
+}
+
+/* =========================
+   CARD CLICK FILTER
+========================= */
+function filterByCard(type) {
+  activeCardFilter = type;
+  applyFilters();
+}
+
+/* =========================
+   CLEAR FILTERS
+========================= */
+function clearFilters() {
+
+  activeCardFilter = null;
+
+  ["f_division","f_state","f_bmhq","f_code","f_name"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  applyFilters();
 }
 
 /* =========================
@@ -101,7 +190,7 @@ function deleteFile(code, type) {
 }
 
 /* =========================
-   ROLE CHECK
+   ROLE
 ========================= */
 function isAdmin() {
   return localStorage.getItem("role") === "admin";
