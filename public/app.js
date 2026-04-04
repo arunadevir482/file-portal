@@ -1,7 +1,10 @@
 let fullData = [];
 let activeCardFilter = null;
-let uploadStatus = {}; // track upload state
+let uploadStatus = {};
 
+/* =========================
+   LOAD DATA
+========================= */
 async function loadData() {
   const res = await fetch("/data/list");
   fullData = await res.json();
@@ -21,18 +24,12 @@ function applyFilters() {
 
   let data = fullData.filter(row => {
 
-    const division = row.division || row.Division || row.DIVISION || "";
-    const st = row.state || row.State || row.STATE || "";
-    const hq = row.bmhq || row["BM HQ"] || row["BM HQ "] || "";
-    const cd = row.code || row.Code || row.CODE || "";
-    const nm = row.name || row.Name || row.NAME || "";
-
     return (
-      division.toLowerCase().includes(div) &&
-      st.toLowerCase().includes(state) &&
-      hq.toLowerCase().includes(bmhq) &&
-      cd.toLowerCase().includes(code) &&
-      nm.toLowerCase().includes(name)
+      (row.division || "").toLowerCase().includes(div) &&
+      (row.state || "").toLowerCase().includes(state) &&
+      (row.bmhq || "").toLowerCase().includes(bmhq) &&
+      (row.code || "").toLowerCase().includes(code) &&
+      (row.name || "").toLowerCase().includes(name)
     );
   });
 
@@ -59,7 +56,7 @@ function renderTable(data) {
 
   data.forEach(row => {
 
-    const code = row.code || row.Code || row.CODE || "";
+    const code = row.code || "";
 
     html += `
       <tr>
@@ -70,7 +67,9 @@ function renderTable(data) {
         <td>${row.name || ""}</td>
 
         <td>
-          <input id="sales_${code}" value="${row.sales || ""}"
+          <input id="sales_${code}" 
+          value="${row.sales || ""}"
+          oninput="updateSales('${code}', this.value)"
           ${(!isAdmin() && (row.awsFile || row.sssFile)) ? "disabled" : ""}>
         </td>
 
@@ -84,6 +83,18 @@ function renderTable(data) {
 }
 
 /* =========================
+   SAVE SALES IN MEMORY (CRITICAL FIX)
+========================= */
+function updateSales(code, value) {
+
+  let row = fullData.find(r => String(r.code) === String(code));
+
+  if (row) {
+    row.sales = value; // ✅ store latest value
+  }
+}
+
+/* =========================
    UPLOAD UI
 ========================= */
 function getUploadUI(row, code, type) {
@@ -91,7 +102,6 @@ function getUploadUI(row, code, type) {
   const key = `${code}_${type}`;
   const fileKey = type === "aws" ? row.awsFile : row.sssFile;
 
-  // uploaded
   if (fileKey) {
     return `
       <button onclick="viewFile('${fileKey}')">View</button>
@@ -99,7 +109,6 @@ function getUploadUI(row, code, type) {
     `;
   }
 
-  // uploading
   if (uploadStatus[key]?.status === "uploading") {
     return `
       <div style="width:100%">
@@ -111,12 +120,10 @@ function getUploadUI(row, code, type) {
     `;
   }
 
-  // error retry
   if (uploadStatus[key]?.status === "error") {
     return `<button onclick="submitFile('${code}','${type}')">Retry</button>`;
   }
 
-  // temp selected
   if (window[`temp_${type}_${code}`]) {
     return `
       <button onclick="previewFile('${type}','${code}')">View</button>
@@ -153,12 +160,15 @@ function chooseFile(code, type) {
 }
 
 /* =========================
-   ADVANCED UPLOAD (XHR)
+   SUBMIT FILE (FIXED)
 ========================= */
 function submitFile(code, type) {
 
   const file = window[`temp_${type}_${code}`];
   if (!file) return;
+
+  const row = fullData.find(r => String(r.code) === String(code));
+  const salesValue = row?.sales || ""; // ✅ ALWAYS TAKE FROM MEMORY
 
   const key = `${code}_${type}`;
   uploadStatus[key] = { status: "uploading", progress: 0 };
@@ -167,7 +177,7 @@ function submitFile(code, type) {
   form.append("file", file);
   form.append("code", code);
   form.append("type", type);
-  form.append("sales", document.getElementById(`sales_${code}`).value);
+  form.append("sales", salesValue); // ✅ FIXED
 
   const xhr = new XMLHttpRequest();
 
@@ -194,7 +204,7 @@ function submitFile(code, type) {
 }
 
 /* =========================
-   DELETE (FAST)
+   DELETE
 ========================= */
 function deleteFile(code, type) {
 
