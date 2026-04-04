@@ -4,6 +4,8 @@ const XLSX = require("xlsx");
 const path = require("path");
 const fs = require("fs");
 
+const { uploadToDrive } = require("../services/drive");
+
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
@@ -29,7 +31,7 @@ function loadExcel() {
 let uploadedFiles = [];
 
 /* =========================
-   LIST DATA (UPDATED)
+   LIST DATA
 ========================= */
 router.get("/list", (req, res) => {
   const excelData = loadExcel();
@@ -41,23 +43,17 @@ router.get("/list", (req, res) => {
 
     return {
       id: index,
-
       division: row.Division || "",
       state: row.STATE || "",
       bmhq: row["BM HQ"] || row.BM_HQ || "",
       code: code || "",
       name: row["Stockist Name"] || row.Name || "",
 
-      // ✅ SALES ADDED
       sales: match?.sales || "",
 
-      awsFile: match?.awsFile
-        ? `/data/file/${match.awsFile}`
-        : null,
-
-      sssFile: match?.sssFile
-        ? `/data/file/${match.sssFile}`
-        : null
+      // ✅ DRIVE LINKS (NOT LOCAL FILES)
+      awsFile: match?.awsFile || null,
+      sssFile: match?.sssFile || null
     };
   });
 
@@ -65,49 +61,70 @@ router.get("/list", (req, res) => {
 });
 
 /* =========================
-   UPLOAD (UPDATED)
+   UPLOAD TO DRIVE
 ========================= */
-router.post("/upload", upload.single("file"), (req, res) => {
-  const { code, type, sales } = req.body;
+router.post("/upload", upload.single("file"), async (req, res) => {
+  try {
+    const { code, type, sales } = req.body;
 
-  if (!code || !type) {
-    return res.status(400).json({ error: "Missing data" });
+    if (!code || !type || !req.file) {
+      return res.status(400).json({ error: "Missing data" });
+    }
+
+    // 🔍 GET STATE FROM EXCEL
+    const excelData = loadExcel();
+    const rowData = excelData.find(r => (r.Code || r.CODE) == code);
+    const state = rowData?.STATE || "General";
+
+    // 🚀 UPLOAD TO GOOGLE DRIVE
+    const driveFile = await uploadToDrive(
+      req.file.path,
+      req.file.originalname,
+      type,
+      state
+    );
+
+    // 🧹 DELETE TEMP FILE
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    // 🧠 SAVE DATA
+    let record = uploadedFiles.find(r => r.Code == code);
+
+    if (!record) {
+      record = { Code: code };
+      uploadedFiles.push(record);
+    }
+
+    // ✅ SAVE SALES
+    record.sales = sales;
+
+    // ✅ SAVE DRIVE LINK
+    record[type + "File"] = driveFile.webViewLink;
+
+    res.json({
+      success: true,
+      file: driveFile.webViewLink
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    // 🧹 CLEAN TEMP FILE IF ERROR
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      error: "Upload failed",
+      details: err.message
+    });
   }
-
-  let record = uploadedFiles.find(r => r.Code == code);
-
-  if (!record) {
-    record = { Code: code };
-    uploadedFiles.push(record);
-  }
-
-  // ✅ SAVE SALES
-  record.sales = sales;
-
-  // SAVE FILE
-  record[type + "File"] = req.file.filename;
-
-  res.json({
-    success: true,
-    file: req.file.filename
-  });
 });
 
 /* =========================
-   VIEW FILE
-========================= */
-router.get("/file/:name", (req, res) => {
-  const filePath = path.join(__dirname, "../uploads", req.params.name);
-
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send("File not found");
-  }
-
-  res.sendFile(filePath);
-});
-
-/* =========================
-   DELETE (UPDATED)
+   DELETE FILE
 ========================= */
 router.delete("/delete/:code/:type", (req, res) => {
   const { code, type } = req.params;
@@ -117,7 +134,7 @@ router.delete("/delete/:code/:type", (req, res) => {
   if (record) {
     delete record[type + "File"];
 
-    // ✅ UNLOCK SALES IF BOTH FILES REMOVED
+    // 🔓 UNLOCK SALES IF BOTH FILES REMOVED
     if (!record.awsFile && !record.sssFile) {
       record.sales = "";
     }
