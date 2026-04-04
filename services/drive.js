@@ -9,7 +9,9 @@ const drive = google.drive({
 
 // ================= FOLDER =================
 async function getOrCreateFolder(name, parent = null) {
-  const query = `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false` +
+
+  const query =
+    `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false` +
     (parent ? ` and '${parent}' in parents` : "");
 
   const res = await drive.files.list({
@@ -35,6 +37,8 @@ async function getOrCreateFolder(name, parent = null) {
 
 // ================= UPLOAD =================
 async function uploadToDrive(filePath, fileName, type, state = "General") {
+
+  // Folder structure: TYPE → STATE
   const mainFolderId = await getOrCreateFolder(type);
   const stateFolderId = await getOrCreateFolder(state, mainFolderId);
 
@@ -49,7 +53,27 @@ async function uploadToDrive(filePath, fileName, type, state = "General") {
     fields: "id, name"
   });
 
-  return response.data;
+  const fileId = response.data.id;
+
+  // ✅ MAKE FILE PUBLIC
+  await drive.permissions.create({
+    fileId,
+    requestBody: {
+      role: "reader",
+      type: "anyone"
+    }
+  });
+
+  // ✅ GET VIEW LINK
+  const file = await drive.files.get({
+    fileId,
+    fields: "webViewLink"
+  });
+
+  return {
+    fileId,
+    webViewLink: file.data.webViewLink
+  };
 }
 
 // ================= LIST =================

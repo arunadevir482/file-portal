@@ -29,7 +29,7 @@ function loadExcel() {
 let uploadedFiles = [];
 
 /* =========================
-   LIST DATA (IMPORTANT FIX)
+   LIST DATA (UPDATED)
 ========================= */
 router.get("/list", (req, res) => {
   const excelData = loadExcel();
@@ -48,6 +48,9 @@ router.get("/list", (req, res) => {
       code: code || "",
       name: row["Stockist Name"] || row.Name || "",
 
+      // ✅ SALES ADDED
+      sales: match?.sales || "",
+
       awsFile: match?.awsFile
         ? `/data/file/${match.awsFile}`
         : null,
@@ -62,10 +65,10 @@ router.get("/list", (req, res) => {
 });
 
 /* =========================
-   UPLOAD
+   UPLOAD (UPDATED)
 ========================= */
 router.post("/upload", upload.single("file"), (req, res) => {
-  const { code, type } = req.body;
+  const { code, type, sales } = req.body;
 
   if (!code || !type) {
     return res.status(400).json({ error: "Missing data" });
@@ -78,6 +81,10 @@ router.post("/upload", upload.single("file"), (req, res) => {
     uploadedFiles.push(record);
   }
 
+  // ✅ SAVE SALES
+  record.sales = sales;
+
+  // SAVE FILE
   record[type + "File"] = req.file.filename;
 
   res.json({
@@ -100,7 +107,7 @@ router.get("/file/:name", (req, res) => {
 });
 
 /* =========================
-   DELETE
+   DELETE (UPDATED)
 ========================= */
 router.delete("/delete/:code/:type", (req, res) => {
   const { code, type } = req.params;
@@ -109,6 +116,11 @@ router.delete("/delete/:code/:type", (req, res) => {
 
   if (record) {
     delete record[type + "File"];
+
+    // ✅ UNLOCK SALES IF BOTH FILES REMOVED
+    if (!record.awsFile && !record.sssFile) {
+      record.sales = "";
+    }
   }
 
   res.json({ success: true });
@@ -118,12 +130,24 @@ router.delete("/delete/:code/:type", (req, res) => {
    DOWNLOAD EXCEL
 ========================= */
 router.get("/download/excel", (req, res) => {
-  const data = loadExcel();
+  const excelData = loadExcel();
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const finalData = excelData.map(row => {
+    const code = row.Code || row.CODE;
+    const match = uploadedFiles.find(f => f.Code == code);
+
+    return {
+      ...row,
+      Sales: match?.sales || "",
+      AWS_Status: match?.awsFile ? "Received" : "Pending",
+      SSS_Status: match?.sssFile ? "Received" : "Pending"
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(finalData);
   const wb = XLSX.utils.book_new();
 
-  XLSX.utils.book_append_sheet(wb, ws, "Data");
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
 
   const filePath = path.join(__dirname, "../uploads/export.xlsx");
   XLSX.writeFile(wb, filePath);
