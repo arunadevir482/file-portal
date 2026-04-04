@@ -31,26 +31,28 @@ function loadExcel() {
 let uploadedFiles = [];
 
 /* =========================
-   LIST DATA
+   LIST DATA (FIXED)
 ========================= */
 router.get("/list", (req, res) => {
+
   const excelData = loadExcel();
 
   const finalData = excelData.map((row, index) => {
-    const code = row.Code || row.CODE;
-    const match = uploadedFiles.find(f => f.Code == code);
+
+    const code = row.Code || row.CODE || "";
+    const match = uploadedFiles.find(f => String(f.Code) === String(code));
 
     return {
       id: index,
       division: row.Division || "",
       state: row.STATE || "",
       bmhq: row["BM HQ"] || row.BM_HQ || "",
-      code: code || "",
+      code: code,
       name: row["Stockist Name"] || row.Name || "",
 
+      // ✅ ALWAYS RETURN SALES
       sales: match?.sales || "",
 
-      // ✅ DRIVE LINKS
       awsFile: match?.awsFile || null,
       sssFile: match?.sssFile || null
     };
@@ -60,9 +62,10 @@ router.get("/list", (req, res) => {
 });
 
 /* =========================
-   UPLOAD TO DRIVE
+   UPLOAD TO DRIVE (FIXED)
 ========================= */
 router.post("/upload", upload.single("file"), async (req, res) => {
+
   try {
     const { code, type, sales } = req.body;
 
@@ -71,10 +74,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     const excelData = loadExcel();
-    const rowData = excelData.find(r => (r.Code || r.CODE) == code);
+    const rowData = excelData.find(r => String(r.Code || r.CODE) === String(code));
     const state = rowData?.STATE || "General";
 
-    // 🚀 UPLOAD TO DRIVE
     const driveFile = await uploadToDrive(
       req.file.path,
       req.file.originalname,
@@ -82,22 +84,21 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       state
     );
 
-    // DELETE TEMP FILE
     if (fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
 
-    let record = uploadedFiles.find(r => r.Code == code);
+    let record = uploadedFiles.find(r => String(r.Code) === String(code));
 
     if (!record) {
       record = { Code: code };
       uploadedFiles.push(record);
     }
 
-    // ✅ SAVE SALES
-    record.sales = sales;
+    // ✅ FIX: KEEP OLD SALES IF EMPTY
+    record.sales = (sales !== undefined && sales !== null) ? sales : record.sales || "";
 
-    // ✅ SAVE LINK + FILE ID (IMPORTANT)
+    // SAVE FILE
     record[type + "File"] = driveFile.webViewLink;
     record[type + "FileId"] = driveFile.fileId;
 
@@ -107,6 +108,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     });
 
   } catch (err) {
+
     console.error(err);
 
     if (req.file && fs.existsSync(req.file.path)) {
@@ -121,31 +123,29 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 /* =========================
-   DELETE (DRIVE + PORTAL)
+   DELETE (FIXED)
 ========================= */
 router.delete("/delete/:code/:type", async (req, res) => {
+
   try {
     const { code, type } = req.params;
 
-    let record = uploadedFiles.find(r => r.Code == code);
+    let record = uploadedFiles.find(r => String(r.Code) === String(code));
 
     if (record) {
 
       const fileId = record[type + "FileId"];
 
-      // ✅ DELETE FROM GOOGLE DRIVE
+      // DELETE FROM DRIVE
       if (fileId) {
         await deleteFromDrive(fileId);
       }
 
-      // DELETE FROM PORTAL
+      // DELETE FILE ONLY
       delete record[type + "File"];
       delete record[type + "FileId"];
 
-      // RESET SALES IF BOTH REMOVED
-      if (!record.awsFile && !record.sssFile) {
-        record.sales = "";
-      }
+      // ❌ DO NOT DELETE SALES
     }
 
     res.json({ success: true });
@@ -160,11 +160,13 @@ router.delete("/delete/:code/:type", async (req, res) => {
    DOWNLOAD EXCEL
 ========================= */
 router.get("/download/excel", (req, res) => {
+
   const excelData = loadExcel();
 
   const finalData = excelData.map(row => {
+
     const code = row.Code || row.CODE;
-    const match = uploadedFiles.find(f => f.Code == code);
+    const match = uploadedFiles.find(f => String(f.Code) === String(code));
 
     return {
       ...row,
