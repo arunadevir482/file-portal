@@ -4,7 +4,7 @@ const XLSX = require("xlsx");
 const path = require("path");
 const fs = require("fs");
 
-const { uploadToDrive } = require("../services/drive");
+const { uploadToDrive, deleteFromDrive } = require("../services/drive");
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
@@ -38,7 +38,6 @@ router.get("/list", (req, res) => {
 
   const finalData = excelData.map((row, index) => {
     const code = row.Code || row.CODE;
-
     const match = uploadedFiles.find(f => f.Code == code);
 
     return {
@@ -51,7 +50,7 @@ router.get("/list", (req, res) => {
 
       sales: match?.sales || "",
 
-      // ✅ DRIVE LINKS (NOT LOCAL FILES)
+      // ✅ DRIVE LINKS
       awsFile: match?.awsFile || null,
       sssFile: match?.sssFile || null
     };
@@ -71,12 +70,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "Missing data" });
     }
 
-    // 🔍 GET STATE FROM EXCEL
     const excelData = loadExcel();
     const rowData = excelData.find(r => (r.Code || r.CODE) == code);
     const state = rowData?.STATE || "General";
 
-    // 🚀 UPLOAD TO GOOGLE DRIVE
+    // 🚀 UPLOAD TO DRIVE
     const driveFile = await uploadToDrive(
       req.file.path,
       req.file.originalname,
@@ -84,12 +82,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       state
     );
 
-    // 🧹 DELETE TEMP FILE
+    // DELETE TEMP FILE
     if (fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
 
-    // 🧠 SAVE DATA
     let record = uploadedFiles.find(r => r.Code == code);
 
     if (!record) {
@@ -100,8 +97,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     // ✅ SAVE SALES
     record.sales = sales;
 
-    // ✅ SAVE DRIVE LINK
+    // ✅ SAVE LINK + FILE ID (IMPORTANT)
     record[type + "File"] = driveFile.webViewLink;
+    record[type + "FileId"] = driveFile.fileId;
 
     res.json({
       success: true,
@@ -111,7 +109,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   } catch (err) {
     console.error(err);
 
-    // 🧹 CLEAN TEMP FILE IF ERROR
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
@@ -124,23 +121,39 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 /* =========================
-   DELETE FILE
+   DELETE (DRIVE + PORTAL)
 ========================= */
-router.delete("/delete/:code/:type", (req, res) => {
-  const { code, type } = req.params;
+router.delete("/delete/:code/:type", async (req, res) => {
+  try {
+    const { code, type } = req.params;
 
-  let record = uploadedFiles.find(r => r.Code == code);
+    let record = uploadedFiles.find(r => r.Code == code);
 
-  if (record) {
-    delete record[type + "File"];
+    if (record) {
 
-    // 🔓 UNLOCK SALES IF BOTH FILES REMOVED
-    if (!record.awsFile && !record.sssFile) {
-      record.sales = "";
+      const fileId = record[type + "FileId"];
+
+      // ✅ DELETE FROM GOOGLE DRIVE
+      if (fileId) {
+        await deleteFromDrive(fileId);
+      }
+
+      // DELETE FROM PORTAL
+      delete record[type + "File"];
+      delete record[type + "FileId"];
+
+      // RESET SALES IF BOTH REMOVED
+      if (!record.awsFile && !record.sssFile) {
+        record.sales = "";
+      }
     }
-  }
 
-  res.json({ success: true });
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Delete failed" });
+  }
 });
 
 /* =========================

@@ -7,7 +7,9 @@ const drive = google.drive({
   auth: oAuth2Client
 });
 
-// ================= FOLDER =================
+/* =========================
+   CREATE / GET FOLDER
+========================= */
 async function getOrCreateFolder(name, parent = null) {
   try {
     const query =
@@ -32,6 +34,8 @@ async function getOrCreateFolder(name, parent = null) {
       fields: "id"
     });
 
+    console.log("Folder created:", name);
+
     return folder.data.id;
 
   } catch (err) {
@@ -40,14 +44,16 @@ async function getOrCreateFolder(name, parent = null) {
   }
 }
 
-// ================= UPLOAD =================
+/* =========================
+   UPLOAD FILE
+========================= */
 async function uploadToDrive(filePath, fileName, type, state = "General") {
   try {
+    console.log("Uploading:", fileName);
 
     const mainFolderId = await getOrCreateFolder(type);
     const stateFolderId = await getOrCreateFolder(state, mainFolderId);
 
-    // ✅ UNIQUE FILE NAME (IMPORTANT)
     const uniqueName = Date.now() + "-" + fileName;
 
     const response = await drive.files.create({
@@ -64,7 +70,7 @@ async function uploadToDrive(filePath, fileName, type, state = "General") {
 
     const fileId = response.data.id;
 
-    // ✅ MAKE PUBLIC
+    // PUBLIC ACCESS
     await drive.permissions.create({
       fileId,
       requestBody: {
@@ -78,6 +84,8 @@ async function uploadToDrive(filePath, fileName, type, state = "General") {
       fields: "webViewLink"
     });
 
+    console.log("Upload success:", fileId);
+
     return {
       fileId,
       webViewLink: file.data.webViewLink
@@ -89,14 +97,30 @@ async function uploadToDrive(filePath, fileName, type, state = "General") {
   }
 }
 
-// ================= DELETE =================
+/* =========================
+   DELETE FILE (SAFE)
+========================= */
 async function deleteFromDrive(fileId) {
   try {
+
+    if (!fileId) {
+      console.log("No fileId provided");
+      return false;
+    }
+
+    console.log("Deleting file:", fileId);
+
     await drive.files.delete({ fileId });
+
+    console.log("Delete success:", fileId);
+
     return true;
+
   } catch (err) {
     console.error("Delete error:", err.message);
-    throw err;
+
+    // ✅ DO NOT BREAK SYSTEM
+    return false;
   }
 }
 
