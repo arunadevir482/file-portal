@@ -3,6 +3,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const path = require("path");
 const fs = require("fs");
+const pdfParse = require("pdf-parse");
 
 const { uploadToDrive, deleteFromDrive } = require("../services/drive");
 
@@ -31,7 +32,38 @@ function loadExcel() {
 let uploadedFiles = [];
 
 /* =========================
-   LIST DATA (FIXED)
+   FILE VALIDATION
+========================= */
+async function validateFile(file) {
+
+  const ext = file.originalname.split(".").pop().toLowerCase();
+
+  const allowed = ["pdf", "xlsx", "xls", "doc", "docx", "txt", "html"];
+
+  const imageTypes = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
+
+  // ❌ Reject images
+  if (imageTypes.includes(ext)) {
+    throw new Error("Unsupported Format");
+  }
+
+  // ❌ Reject unknown
+  if (!allowed.includes(ext)) {
+    throw new Error("Unsupported Format");
+  }
+
+  // ✅ PDF validation
+  if (ext === "pdf") {
+    const data = await pdfParse(fs.readFileSync(file.path));
+
+    if (!data.text || data.text.trim().length < 20) {
+      throw new Error("INVALID PDF");
+    }
+  }
+}
+
+/* =========================
+   LIST DATA
 ========================= */
 router.get("/list", (req, res) => {
 
@@ -50,9 +82,7 @@ router.get("/list", (req, res) => {
       code: code,
       name: row["Stockist Name"] || row.Name || "",
 
-      // ✅ ALWAYS RETURN SALES
       sales: match?.sales || "",
-
       awsFile: match?.awsFile || null,
       sssFile: match?.sssFile || null
     };
@@ -62,7 +92,7 @@ router.get("/list", (req, res) => {
 });
 
 /* =========================
-   UPLOAD TO DRIVE (FIXED)
+   UPLOAD (WITH VALIDATION)
 ========================= */
 router.post("/upload", upload.single("file"), async (req, res) => {
 
@@ -72,6 +102,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     if (!code || !type || !req.file) {
       return res.status(400).json({ error: "Missing data" });
     }
+
+    // 🚀 VALIDATE FILE
+    await validateFile(req.file);
 
     const excelData = loadExcel();
     const rowData = excelData.find(r => String(r.Code || r.CODE) === String(code));
@@ -95,10 +128,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       uploadedFiles.push(record);
     }
 
-    // ✅ FIX: KEEP OLD SALES IF EMPTY
+    // ✅ KEEP SALES
     record.sales = (sales !== undefined && sales !== null) ? sales : record.sales || "";
 
-    // SAVE FILE
     record[type + "File"] = driveFile.webViewLink;
     record[type + "FileId"] = driveFile.fileId;
 
@@ -109,21 +141,20 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
   } catch (err) {
 
-    console.error(err);
+    console.error(err.message);
 
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
 
-    res.status(500).json({
-      error: "Upload failed",
-      details: err.message
+    res.status(400).json({
+      error: err.message || "Upload failed"
     });
   }
 });
 
 /* =========================
-   DELETE (FIXED)
+   DELETE
 ========================= */
 router.delete("/delete/:code/:type", async (req, res) => {
 
@@ -136,16 +167,12 @@ router.delete("/delete/:code/:type", async (req, res) => {
 
       const fileId = record[type + "FileId"];
 
-      // DELETE FROM DRIVE
       if (fileId) {
         await deleteFromDrive(fileId);
       }
 
-      // DELETE FILE ONLY
       delete record[type + "File"];
       delete record[type + "FileId"];
-
-      // ❌ DO NOT DELETE SALES
     }
 
     res.json({ success: true });
