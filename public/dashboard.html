@@ -108,6 +108,33 @@
 
 </div>
 
+<!-- ===================== -->
+<!-- FILE PREVIEW MODAL -->
+<!-- ===================== -->
+<div id="filePreviewModal" class="preview-modal hidden">
+
+  <div class="preview-container">
+
+    <!-- HEADER -->
+    <div class="preview-header">
+      <span>File Preview</span>
+      <button onclick="closePreview()">✖</button>
+    </div>
+
+    <!-- BODY -->
+    <div class="preview-body">
+      <iframe id="previewFrame"></iframe>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="preview-footer">
+      <button id="submitFileBtn" class="submit-btn">Submit</button>
+    </div>
+
+  </div>
+
+</div>
+
 <script src="app.js"></script>
 
 <script>

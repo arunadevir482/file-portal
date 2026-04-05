@@ -1,6 +1,9 @@
 let fullData = [];
 let activeCardFilter = null;
 let uploadStatus = {};
+let currentPreviewFile = null;
+let currentPreviewCode = null;
+let currentPreviewType = null;
 
 /* =========================
    LOAD DATA
@@ -12,7 +15,7 @@ async function loadData() {
 }
 
 /* =========================
-   SHOW MESSAGE (CARD + ANIMATION)
+   MESSAGE CARD
 ========================= */
 function showMessage(message, isError = false) {
 
@@ -28,14 +31,17 @@ function showMessage(message, isError = false) {
 
   card.classList.remove("message-show", "message-hide");
 
+  // 🔥 FIX MESSAGE TEXT
+  if (message.toLowerCase().includes("pdfparse")) {
+    message = "INVALID PDF";
+  }
+
   card.innerText = message;
   card.style.background = isError ? "#e74c3c" : "#27ae60";
 
-  // show animation
   card.classList.add("message-show");
 
   setTimeout(() => {
-
     card.classList.remove("message-show");
     card.classList.add("message-hide");
 
@@ -88,7 +94,7 @@ function applyFilters() {
 }
 
 /* =========================
-   TABLE RENDER
+   TABLE
 ========================= */
 function renderTable(data) {
 
@@ -109,8 +115,7 @@ function renderTable(data) {
         <td>
           <input id="sales_${code}" 
           value="${row.sales || ""}"
-          oninput="updateSales('${code}', this.value)"
-          ${(!isAdmin() && (row.awsFile || row.sssFile)) ? "disabled" : ""}>
+          oninput="updateSales('${code}', this.value)">
         </td>
 
         <td>${getUploadUI(row, code, "aws")}</td>
@@ -123,7 +128,7 @@ function renderTable(data) {
 }
 
 /* =========================
-   SAVE SALES
+   SALES
 ========================= */
 function updateSales(code, value) {
   let row = fullData.find(r => String(r.code) === String(code));
@@ -135,7 +140,6 @@ function updateSales(code, value) {
 ========================= */
 function getUploadUI(row, code, type) {
 
-  const key = `${code}_${type}`;
   const fileKey = type === "aws" ? row.awsFile : row.sssFile;
 
   if (fileKey) {
@@ -145,21 +149,10 @@ function getUploadUI(row, code, type) {
     `;
   }
 
-  if (uploadStatus[key]?.status === "uploading") {
-    return `
-      <div style="width:100%">
-        <div style="background:#ddd;height:6px">
-          <div style="width:${uploadStatus[key].progress}%;background:green;height:6px"></div>
-        </div>
-        <small>${uploadStatus[key].progress}%</small>
-      </div>
-    `;
-  }
-
   if (window[`temp_${type}_${code}`]) {
     return `
-      <button onclick="previewFile('${type}','${code}')">View</button>
-      <button onclick="submitFile('${code}','${type}')">Submit</button>
+      <button onclick="openPreview('${type}','${code}')">View</button>
+      <button onclick="submitFile()">Submit</button>
     `;
   }
 
@@ -175,84 +168,95 @@ function chooseFile(code, type) {
   input.type = "file";
 
   input.onchange = () => {
-    window[`temp_${type}_${code}`] = input.files[0];
-    applyFilters();
+    const file = input.files[0];
+    if (!file) return;
+
+    window[`temp_${type}_${code}`] = file;
+
+    currentPreviewFile = file;
+    currentPreviewCode = code;
+    currentPreviewType = type;
+
+    openPreview(type, code);
   };
 
   input.click();
 }
 
 /* =========================
-   SUBMIT FILE (FIXED RESET)
+   PREVIEW MODAL
 ========================= */
-function submitFile(code, type) {
+function openPreview(type, code) {
 
   const file = window[`temp_${type}_${code}`];
   if (!file) return;
 
+  currentPreviewFile = file;
+  currentPreviewCode = code;
+  currentPreviewType = type;
+
+  const modal = document.getElementById("filePreviewModal");
+  const frame = document.getElementById("previewFrame");
+
+  frame.src = URL.createObjectURL(file);
+  modal.classList.remove("hidden");
+}
+
+function closePreview() {
+  document.getElementById("filePreviewModal").classList.add("hidden");
+  document.getElementById("previewFrame").src = "";
+
+  currentPreviewFile = null;
+}
+
+/* =========================
+   SUBMIT FILE
+========================= */
+function submitFile() {
+
+  if (!currentPreviewFile) return;
+
+  const code = currentPreviewCode;
+  const type = currentPreviewType;
+
   const row = fullData.find(r => String(r.code) === String(code));
   const salesValue = row?.sales || "";
 
-  const key = `${code}_${type}`;
-  uploadStatus[key] = { status: "uploading", progress: 0 };
-
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", currentPreviewFile);
   form.append("code", code);
   form.append("type", type);
   form.append("sales", salesValue);
 
-  const xhr = new XMLHttpRequest();
+  fetch("/data/upload", {
+    method: "POST",
+    body: form
+  })
+  .then(res => res.json())
+  .then(res => {
 
-  xhr.upload.onprogress = function (e) {
-    if (e.lengthComputable) {
-      uploadStatus[key].progress = Math.round((e.loaded / e.total) * 100);
-      applyFilters();
-    }
-  };
+    if (!res.success) {
+      showMessage(res.message || "Upload failed", true);
 
-  xhr.onload = function () {
-
-    if (xhr.status !== 200) {
-
-      let errorMsg = "Upload failed";
-
-      try {
-        const res = JSON.parse(xhr.responseText);
-        errorMsg = res.error || errorMsg;
-      } catch {}
-
-      showMessage(errorMsg, true);
-
-      // ✅ FULL RESET
-      uploadStatus[key] = {};
       delete window[`temp_${type}_${code}`];
-
+      closePreview();
       applyFilters();
       return;
     }
 
     showMessage("UPLOAD SUCCESSFUL");
 
-    uploadStatus[key] = {};
     delete window[`temp_${type}_${code}`];
-
+    closePreview();
     loadData();
-  };
+  })
+  .catch(() => {
+    showMessage("Upload error", true);
 
-  xhr.onerror = function () {
-
-    showMessage("Network Error", true);
-
-    // ✅ FULL RESET
-    uploadStatus[key] = {};
     delete window[`temp_${type}_${code}`];
-
+    closePreview();
     applyFilters();
-  };
-
-  xhr.open("POST", "/data/upload");
-  xhr.send(form);
+  });
 }
 
 /* =========================
@@ -265,17 +269,15 @@ function deleteFile(code, type) {
 }
 
 /* =========================
-   UTIL
+   VIEW FILE
 ========================= */
-function previewFile(type, code) {
-  const file = window[`temp_${type}_${code}`];
-  window.open(URL.createObjectURL(file));
-}
-
 function viewFile(url) {
   window.open(url);
 }
 
+/* =========================
+   UTIL
+========================= */
 function isAdmin() {
   return localStorage.getItem("role") === "admin";
 }

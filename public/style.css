@@ -114,10 +114,9 @@ button:hover {
 .delete { background: red; color: white; }
 
 /* =========================
-   ✅ MESSAGE CARD (FINAL FIX)
+   MESSAGE CARD
 ========================= */
 
-/* 🔥 THIS WAS MISSING */
 #errorBox {
   position: fixed;
   top: 20px;
@@ -126,7 +125,6 @@ button:hover {
   z-index: 9999;
 }
 
-/* CARD STYLE */
 .message-card {
   min-width: 300px;
   max-width: 450px;
@@ -141,12 +139,10 @@ button:hover {
   transform: translateY(-20px);
 }
 
-/* SHOW ANIMATION */
 .message-show {
   animation: slideDownFade 0.4s ease forwards;
 }
 
-/* HIDE ANIMATION */
 .message-hide {
   animation: slideUpFade 0.4s ease forwards;
 }
@@ -170,5 +166,90 @@ button:hover {
   to {
     opacity: 0;
     transform: translateY(-25px);
+  }
+}
+
+/* =========================
+   ✅ FILE PREVIEW MODAL
+========================= */
+
+.preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* HIDE */
+.hidden {
+  display: none;
+}
+
+/* CONTAINER */
+.preview-container {
+  width: 70%;
+  height: 80%;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  animation: modalFadeIn 0.3s ease;
+}
+
+/* HEADER */
+.preview-header {
+  padding: 12px;
+  background: linear-gradient(90deg,#6a11cb,#2575fc);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* BODY */
+.preview-body {
+  flex: 1;
+  background: #f8f9fc;
+}
+
+.preview-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* FOOTER */
+.preview-footer {
+  padding: 10px;
+  text-align: right;
+  border-top: 1px solid #eee;
+}
+
+/* SUBMIT BUTTON */
+.submit-btn {
+  background: green;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* ANIMATION */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
