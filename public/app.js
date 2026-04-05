@@ -12,6 +12,26 @@ async function loadData() {
 }
 
 /* =========================
+   SHOW ERROR UI
+========================= */
+function showError(message) {
+
+  const box = document.getElementById("errorBox");
+
+  if (!box) {
+    alert(message);
+    return;
+  }
+
+  box.innerText = message;
+  box.style.display = "block";
+
+  setTimeout(() => {
+    box.style.display = "none";
+  }, 4000);
+}
+
+/* =========================
    APPLY FILTERS
 ========================= */
 function applyFilters() {
@@ -83,15 +103,11 @@ function renderTable(data) {
 }
 
 /* =========================
-   SAVE SALES IN MEMORY (CRITICAL FIX)
+   SAVE SALES
 ========================= */
 function updateSales(code, value) {
-
   let row = fullData.find(r => String(r.code) === String(code));
-
-  if (row) {
-    row.sales = value; // ✅ store latest value
-  }
+  if (row) row.sales = value;
 }
 
 /* =========================
@@ -139,15 +155,6 @@ function getUploadUI(row, code, type) {
 ========================= */
 function chooseFile(code, type) {
 
-  const row = fullData.find(r => r.code == code);
-
-  if (!isAdmin()) {
-    if (row.awsFile || row.sssFile) {
-      alert("Already uploaded.");
-      return;
-    }
-  }
-
   const input = document.createElement("input");
   input.type = "file";
 
@@ -160,7 +167,7 @@ function chooseFile(code, type) {
 }
 
 /* =========================
-   SUBMIT FILE (FIXED)
+   SUBMIT FILE (WITH ERROR UI)
 ========================= */
 function submitFile(code, type) {
 
@@ -168,7 +175,7 @@ function submitFile(code, type) {
   if (!file) return;
 
   const row = fullData.find(r => String(r.code) === String(code));
-  const salesValue = row?.sales || ""; // ✅ ALWAYS TAKE FROM MEMORY
+  const salesValue = row?.sales || "";
 
   const key = `${code}_${type}`;
   uploadStatus[key] = { status: "uploading", progress: 0 };
@@ -177,7 +184,7 @@ function submitFile(code, type) {
   form.append("file", file);
   form.append("code", code);
   form.append("type", type);
-  form.append("sales", salesValue); // ✅ FIXED
+  form.append("sales", salesValue);
 
   const xhr = new XMLHttpRequest();
 
@@ -189,12 +196,29 @@ function submitFile(code, type) {
   };
 
   xhr.onload = function () {
+
+    if (xhr.status !== 200) {
+
+      let errorMsg = "Upload failed";
+
+      try {
+        const res = JSON.parse(xhr.responseText);
+        errorMsg = res.error || errorMsg;
+      } catch {}
+
+      showError(errorMsg);
+      uploadStatus[key] = { status: "error" };
+      applyFilters();
+      return;
+    }
+
     uploadStatus[key] = { status: "done" };
     delete window[`temp_${type}_${code}`];
     loadData();
   };
 
   xhr.onerror = function () {
+    showError("Network error");
     uploadStatus[key] = { status: "error" };
     applyFilters();
   };
@@ -207,15 +231,13 @@ function submitFile(code, type) {
    DELETE
 ========================= */
 function deleteFile(code, type) {
-
   if (!confirm("Delete file?")) return;
-
   fetch(`/data/delete/${code}/${type}`, { method: "DELETE" });
   loadData();
 }
 
 /* =========================
-   OTHER
+   UTIL
 ========================= */
 function previewFile(type, code) {
   const file = window[`temp_${type}_${code}`];
@@ -231,7 +253,6 @@ function isAdmin() {
 }
 
 function updateCards(data) {
-
   let awsDone = 0, sssDone = 0;
 
   data.forEach(row => {

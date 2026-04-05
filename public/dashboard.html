@@ -7,15 +7,36 @@
 
 <body>
 
+<!-- ERROR BOX -->
+<div id="errorBox" style="
+  display:none;
+  background:#ff4d4d;
+  color:white;
+  padding:10px;
+  margin:10px;
+  border-radius:5px;
+  text-align:center;
+"></div>
+
 <!-- HEADER -->
 <div class="header">
+
   <h2 id="pageTitle">Dashboard</h2>
+
+  <!-- GLOBAL SEARCH -->
+  <input 
+    id="globalSearch" 
+    placeholder="Search..." 
+    onkeyup="applyFilters()" 
+    style="padding:6px;width:200px;margin-left:20px"
+  >
 
   <div class="top-actions">
     <button onclick="clearFilters()">Clear Filters</button>
-    <button onclick="downloadExcel()">Downloads</button>
+    <button onclick="downloadExcel()">Download</button>
     <button onclick="logout()">Logout</button>
   </div>
+
 </div>
 
 <!-- CARDS -->
@@ -91,7 +112,6 @@
 <script src="app.js"></script>
 
 <script>
-  // ✅ ROLE BASED TITLE (KEEP)
   const role = localStorage.getItem("role");
 
   if (role === "admin") {
