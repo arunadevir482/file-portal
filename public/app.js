@@ -12,9 +12,9 @@ async function loadData() {
 }
 
 /* =========================
-   SHOW ERROR UI
+   SHOW MESSAGE (SUCCESS + ERROR)
 ========================= */
-function showError(message) {
+function showMessage(message, isError = false) {
 
   const box = document.getElementById("errorBox");
 
@@ -25,10 +25,11 @@ function showError(message) {
 
   box.innerText = message;
   box.style.display = "block";
+  box.style.background = isError ? "#ff4d4d" : "#28a745";
 
   setTimeout(() => {
     box.style.display = "none";
-  }, 4000);
+  }, 3000);
 }
 
 /* =========================
@@ -41,10 +42,15 @@ function applyFilters() {
   const bmhq = document.getElementById("f_bmhq")?.value.toLowerCase() || "";
   const code = document.getElementById("f_code")?.value.toLowerCase() || "";
   const name = document.getElementById("f_name")?.value.toLowerCase() || "";
+  const global = document.getElementById("globalSearch")?.value.toLowerCase() || "";
 
   let data = fullData.filter(row => {
 
+    const combined =
+      `${row.division} ${row.state} ${row.bmhq} ${row.code} ${row.name}`.toLowerCase();
+
     return (
+      combined.includes(global) &&
       (row.division || "").toLowerCase().includes(div) &&
       (row.state || "").toLowerCase().includes(state) &&
       (row.bmhq || "").toLowerCase().includes(bmhq) &&
@@ -136,10 +142,6 @@ function getUploadUI(row, code, type) {
     `;
   }
 
-  if (uploadStatus[key]?.status === "error") {
-    return `<button onclick="submitFile('${code}','${type}')">Retry</button>`;
-  }
-
   if (window[`temp_${type}_${code}`]) {
     return `
       <button onclick="previewFile('${type}','${code}')">View</button>
@@ -167,7 +169,7 @@ function chooseFile(code, type) {
 }
 
 /* =========================
-   SUBMIT FILE (WITH ERROR UI)
+   SUBMIT FILE (FINAL FIX)
 ========================= */
 function submitFile(code, type) {
 
@@ -206,20 +208,22 @@ function submitFile(code, type) {
         errorMsg = res.error || errorMsg;
       } catch {}
 
-      showError(errorMsg);
-      uploadStatus[key] = { status: "error" };
+      showMessage(errorMsg, true);
+      uploadStatus[key] = {};
       applyFilters();
       return;
     }
 
-    uploadStatus[key] = { status: "done" };
+    showMessage("UPLOAD SUCCESSFUL");
+
+    uploadStatus[key] = {};
     delete window[`temp_${type}_${code}`];
     loadData();
   };
 
   xhr.onerror = function () {
-    showError("Network error");
-    uploadStatus[key] = { status: "error" };
+    showMessage("Network Error", true);
+    uploadStatus[key] = {};
     applyFilters();
   };
 
@@ -253,6 +257,7 @@ function isAdmin() {
 }
 
 function updateCards(data) {
+
   let awsDone = 0, sssDone = 0;
 
   data.forEach(row => {
@@ -268,6 +273,9 @@ function updateCards(data) {
   document.getElementById("sssDone").innerText =
     `${sssDone} (${Math.round((sssDone/total)*100)}%)`;
 
+  document.getElementById("awsPending").innerText = total - awsDone;
+  document.getElementById("sssPending").innerText = total - sssDone;
+
   document.getElementById("total").innerText = data.length;
 }
 
@@ -282,6 +290,7 @@ function clearFilters() {
     const el=document.getElementById(id);
     if(el) el.value="";
   });
+  document.getElementById("globalSearch").value = "";
   applyFilters();
 }
 
