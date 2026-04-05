@@ -1,6 +1,6 @@
 let fullData = [];
 let activeCardFilter = null;
-let uploadStatus = {};
+
 let currentPreviewFile = null;
 let currentPreviewCode = null;
 let currentPreviewType = null;
@@ -29,9 +29,6 @@ function showMessage(message, isError = false) {
 
   box.style.display = "block";
 
-  card.classList.remove("message-show", "message-hide");
-
-  // 🔥 FIX MESSAGE TEXT
   if (message.toLowerCase().includes("pdfparse")) {
     message = "INVALID PDF";
   }
@@ -42,41 +39,22 @@ function showMessage(message, isError = false) {
   card.classList.add("message-show");
 
   setTimeout(() => {
-    card.classList.remove("message-show");
-    card.classList.add("message-hide");
-
-    setTimeout(() => {
-      box.style.display = "none";
-    }, 400);
-
-  }, 3000);
+    box.style.display = "none";
+  }, 2500);
 }
 
 /* =========================
-   APPLY FILTERS
+   FILTER
 ========================= */
 function applyFilters() {
 
-  const div = document.getElementById("f_division")?.value.toLowerCase() || "";
-  const state = document.getElementById("f_state")?.value.toLowerCase() || "";
-  const bmhq = document.getElementById("f_bmhq")?.value.toLowerCase() || "";
-  const code = document.getElementById("f_code")?.value.toLowerCase() || "";
-  const name = document.getElementById("f_name")?.value.toLowerCase() || "";
   const global = document.getElementById("globalSearch")?.value.toLowerCase() || "";
 
   let data = fullData.filter(row => {
-
     const combined =
       `${row.division} ${row.state} ${row.bmhq} ${row.code} ${row.name}`.toLowerCase();
 
-    return (
-      combined.includes(global) &&
-      (row.division || "").toLowerCase().includes(div) &&
-      (row.state || "").toLowerCase().includes(state) &&
-      (row.bmhq || "").toLowerCase().includes(bmhq) &&
-      (row.code || "").toLowerCase().includes(code) &&
-      (row.name || "").toLowerCase().includes(name)
-    );
+    return combined.includes(global);
   });
 
   if (activeCardFilter) {
@@ -113,8 +91,7 @@ function renderTable(data) {
         <td>${row.name || ""}</td>
 
         <td>
-          <input id="sales_${code}" 
-          value="${row.sales || ""}"
+          <input value="${row.sales || ""}"
           oninput="updateSales('${code}', this.value)">
         </td>
 
@@ -168,6 +145,7 @@ function chooseFile(code, type) {
   input.type = "file";
 
   input.onchange = () => {
+
     const file = input.files[0];
     if (!file) return;
 
@@ -184,7 +162,7 @@ function chooseFile(code, type) {
 }
 
 /* =========================
-   PREVIEW MODAL
+   PREVIEW (FIXED)
 ========================= */
 function openPreview(type, code) {
 
@@ -198,35 +176,60 @@ function openPreview(type, code) {
   const modal = document.getElementById("filePreviewModal");
   const frame = document.getElementById("previewFrame");
 
-  frame.src = URL.createObjectURL(file);
+  const ext = file.name.split(".").pop().toLowerCase();
+
+  // ✅ PDF preview
+  if (ext === "pdf") {
+    frame.src = URL.createObjectURL(file);
+  }
+
+  // ✅ Excel preview (NO DOWNLOAD)
+  else if (ext === "xlsx" || ext === "xls") {
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const html = XLSX.utils.sheet_to_html(sheet);
+
+      frame.srcdoc = html;
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  else {
+    frame.srcdoc = "<h3 style='padding:20px'>Preview not available</h3>";
+  }
+
   modal.classList.remove("hidden");
 }
 
+/* =========================
+   CLOSE
+========================= */
 function closePreview() {
   document.getElementById("filePreviewModal").classList.add("hidden");
-  document.getElementById("previewFrame").src = "";
-
-  currentPreviewFile = null;
 }
 
 /* =========================
-   SUBMIT FILE
+   SUBMIT (FIXED)
 ========================= */
 function submitFile() {
 
-  if (!currentPreviewFile) return;
-
-  const code = currentPreviewCode;
-  const type = currentPreviewType;
-
-  const row = fullData.find(r => String(r.code) === String(code));
-  const salesValue = row?.sales || "";
+  if (!currentPreviewFile) {
+    showMessage("No file selected", true);
+    return;
+  }
 
   const form = new FormData();
   form.append("file", currentPreviewFile);
-  form.append("code", code);
-  form.append("type", type);
-  form.append("sales", salesValue);
+  form.append("code", currentPreviewCode);
+  form.append("type", currentPreviewType);
 
   fetch("/data/upload", {
     method: "POST",
@@ -236,9 +239,9 @@ function submitFile() {
   .then(res => {
 
     if (!res.success) {
-      showMessage(res.message || "Upload failed", true);
+      showMessage(res.message, true);
 
-      delete window[`temp_${type}_${code}`];
+      delete window[`temp_${currentPreviewType}_${currentPreviewCode}`];
       closePreview();
       applyFilters();
       return;
@@ -246,17 +249,12 @@ function submitFile() {
 
     showMessage("UPLOAD SUCCESSFUL");
 
-    delete window[`temp_${type}_${code}`];
+    delete window[`temp_${currentPreviewType}_${currentPreviewCode}`];
+
     closePreview();
     loadData();
   })
-  .catch(() => {
-    showMessage("Upload error", true);
-
-    delete window[`temp_${type}_${code}`];
-    closePreview();
-    applyFilters();
-  });
+  .catch(() => showMessage("Upload error", true));
 }
 
 /* =========================
@@ -269,7 +267,7 @@ function deleteFile(code, type) {
 }
 
 /* =========================
-   VIEW FILE
+   VIEW
 ========================= */
 function viewFile(url) {
   window.open(url);
@@ -303,30 +301,6 @@ function updateCards(data) {
   document.getElementById("sssPending").innerText = total - sssDone;
 
   document.getElementById("total").innerText = data.length;
-}
-
-function filterByCard(type) {
-  activeCardFilter = type;
-  applyFilters();
-}
-
-function clearFilters() {
-  activeCardFilter = null;
-  ["f_division","f_state","f_bmhq","f_code","f_name"].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.value="";
-  });
-  document.getElementById("globalSearch").value = "";
-  applyFilters();
-}
-
-function downloadExcel() {
-  window.open("/data/download/excel");
-}
-
-function logout() {
-  localStorage.clear();
-  window.location = "/";
 }
 
 window.onload = loadData;
