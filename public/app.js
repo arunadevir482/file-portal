@@ -57,16 +57,6 @@ function applyFilters() {
     return combined.includes(global);
   });
 
-  if (activeCardFilter) {
-    data = data.filter(row => {
-      if (activeCardFilter === "awsDone") return row.awsFile;
-      if (activeCardFilter === "awsPending") return !row.awsFile;
-      if (activeCardFilter === "sssDone") return row.sssFile;
-      if (activeCardFilter === "sssPending") return !row.sssFile;
-      return true;
-    });
-  }
-
   renderTable(data);
   updateCards(data);
 }
@@ -162,7 +152,7 @@ function chooseFile(code, type) {
 }
 
 /* =========================
-   PREVIEW (FIXED)
+   PREVIEW (FULL FIX)
 ========================= */
 function openPreview(type, code) {
 
@@ -178,18 +168,17 @@ function openPreview(type, code) {
 
   const ext = file.name.split(".").pop().toLowerCase();
 
-  // ✅ PDF preview
+  // PDF
   if (ext === "pdf") {
     frame.src = URL.createObjectURL(file);
   }
 
-  // ✅ Excel preview (NO DOWNLOAD)
+  // EXCEL
   else if (ext === "xlsx" || ext === "xls") {
 
     const reader = new FileReader();
 
     reader.onload = function (e) {
-
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: "array" });
 
@@ -202,6 +191,31 @@ function openPreview(type, code) {
     reader.readAsArrayBuffer(file);
   }
 
+  // HTML
+  else if (ext === "html") {
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      frame.srcdoc = e.target.result;
+    };
+
+    reader.readAsText(file);
+  }
+
+  // TXT
+  else if (ext === "txt") {
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      frame.srcdoc = `<pre style="padding:20px">${e.target.result}</pre>`;
+    };
+
+    reader.readAsText(file);
+  }
+
+  // FALLBACK
   else {
     frame.srcdoc = "<h3 style='padding:20px'>Preview not available</h3>";
   }
@@ -214,6 +228,7 @@ function openPreview(type, code) {
 ========================= */
 function closePreview() {
   document.getElementById("filePreviewModal").classList.add("hidden");
+  document.getElementById("previewFrame").src = "";
 }
 
 /* =========================
@@ -243,7 +258,6 @@ function submitFile() {
 
       delete window[`temp_${currentPreviewType}_${currentPreviewCode}`];
       closePreview();
-      applyFilters();
       return;
     }
 

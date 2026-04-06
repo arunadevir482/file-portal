@@ -3,6 +3,10 @@
 <head>
   <title>Dashboard</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- ✅ REQUIRED FOR EXCEL PREVIEW -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
 </head>
 
 <body>
@@ -128,7 +132,8 @@
 
     <!-- FOOTER -->
     <div class="preview-footer">
-      <button id="submitFileBtn" class="submit-btn">Submit</button>
+      <!-- ✅ FIXED BUTTON -->
+      <button onclick="submitFile()" class="submit-btn">Submit</button>
     </div>
 
   </div>
